@@ -1,0 +1,457 @@
+---
+title: "Time Series Analysis"
+author: "Aleksandra Kalisz"
+date: "2023-05-08"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(ggfortify)
+library(forecast)
+library(stats)
+library(smooth)
+library(caret)
+library(e1071)
+library(zoo)
+library(fpp2)
+library(forecast)
+library(tseries)
+
+```
+
+
+
+```{r}
+# Reading the data
+
+month_temp.df <- read.csv("nitm18442004.csv", fileEncoding = "UTF-8-BOM")
+year_temp.df <- read.csv("nity18442004.csv", fileEncoding = "UTF-8-BOM")
+tail(month_temp.df)
+tail(year_temp.df)
+
+
+#Summarizing the data
+glimpse(month_temp.df)
+summary(month_temp.df)
+
+glimpse(year_temp.df)
+summary(year_temp.df)
+```
+
+```{r}
+# Rename column from x to Temperature_y
+colnames(year_temp.df)[which(names(year_temp.df)=="x")] <- "Temperature_y"
+# Print the updated data frame
+print(year_temp.df)
+
+
+# Rename column x to Temperature_m
+colnames(month_temp.df)[which(names(month_temp.df)=="x")] <- "Temperature_m"
+# Print the updated data frame
+print(month_temp.df)
+
+# Check for missing values
+print(colSums(is.na(year_temp.df)))
+print(colSums(is.na(month_temp.df)))
+
+
+
+
+```
+```{r}
+# placing data into time series using ts() function
+
+month_ts <- ts(month_temp.df, start=1844, frequency=12)
+year_ts<- ts(year_temp.df,  start=1844,end = 2004)
+
+print(month_ts)
+print(year_ts)
+```
+
+```{r}
+
+# Performing ADF test
+adf.test(month_ts)
+adf.test(year_ts)
+```
+
+```{r}
+# plotting timeseries
+
+plot(month_ts, type = "l", main = "Month Time Series")
+plot(year_ts, type = "l", main = "Year Time Series")
+```
+```{r}
+# Creating Seasonal plot of the month time series: This can be used to visualize any seasonal patterns in the data.
+
+seasonplot(month_ts, main = "Seasonal Plot of Month Time Series")
+
+```
+
+```{r}
+#Seasonal plot #2
+ggseasonplot(month_ts, year.labels=TRUE, year.labels.left=TRUE)+
+  ylab("Temperature_m")+
+  ggtitle("Seasonal Plot")
+ 
+     
+  
+
+```
+```{r}
+#Seasonal distribution plot #3
+ggsubseriesplot(month_ts)+
+  ylab("Temperature_m")+
+  ggtitle("Seasonal distribution")
+```
+Smoothing time series- moving averages
+```{r}
+library(fpp2)
+#Plotting Simple moving average for Year
+
+
+plot(year_ts, main="Raw Time Series Year")
+ma(year_ts,6)
+ma(year_ts,12)
+
+autoplot(year_ts)+
+  autolayer(ma(year_ts,6))+
+   autolayer(ma(year_ts,12))
+  ggtsdisplay(year_ts)
+  
+
+
+
+#Plotting Simple moving average for Month
+
+
+plot(month_ts, main="Raw Time Series Month")
+month_smooth<-ma(month_ts,36)
+plot(month_smooth)
+
+
+```
+By sliding the window across the data, a new set of smoothed values is obtained, which reduces the impact of random fluctuations and highlights the underlying trends in the data. The choice of window width is important, as it can affect the degree of smoothing achieved and the level of detail preserved in the data.
+
+
+Seasonal Decomposition using decompose() of multicaptive
+```{r}
+
+fit.decmult <- decompose(month_ts, type = "multiplicative")
+fit.decmult
+plot(fit.decmult)
+
+
+```
+
+Seasonal Decomposition using decompose() of additive
+```{r}
+
+# Multiplicative model for seasonal decomposition Additive
+fit.decadd <- decompose(month_ts, type = "additive")
+fit.decadd
+plot(fit.decadd)
+
+```
+
+
+Mean Model, Naive Model, SNaive
+```{r}
+
+#Mean Model Month
+fcast.mean.m<- meanf(month_ts, h=4)
+summary(fcast.mean.m)
+plot(fcast.mean.m)
+
+# Mean Model for year
+
+fcast.mean.y<- meanf(year_ts, h=4)
+summary(fcast.mean.y)
+plot(fcast.mean.y)
+#############################################
+# Naive Model for month
+fcast.naive.m<-naive(month_ts, h=3)
+summary(fcast.naive.m)
+plot(fcast.naive.m)
+# where h= 3 periods ahead and look at RMSE value , which is the lowest
+
+# Naive model for Year
+fcast.naive.y<-naive(year_ts, h=3)
+summary(fcast.naive.y)
+plot(fcast.naive.y)
+
+################################################
+
+# seasonal Naive Model Month
+fcast.seasonalnaive.m<-snaive(month_ts, h=3)
+summary(fcast.seasonalnaive.m)
+plot(fcast.seasonalnaive.m)
+
+# seasonal Naive Model year
+fcast.seasonalnaive.y<-snaive(year_ts, h=3)
+summary(fcast.seasonalnaive.y)
+plot(fcast.seasonalnaive.y)
+```
+
+Holt's Model
+```{r}
+
+ # forecast using a Holt's method
+holt <- holt(year_ts, h = 12)
+summary(holt)
+# Plot the results
+plot(holt)
+
+# ETS
+holt2 <- window(year_ts, start = 1844)
+holt2<- ets(holt2, model = "AAN")
+holt2
+forecast(holt,5)
+
+
+
+
+```
+
+
+Holt - Winters Method
+
+```{r}
+# Holt Winters Method
+holt_winters <- hw(month_ts, seasonal="additive")
+autoplot(holt_winters)
+summary(holt_winters)
+
+
+```
+
+
+CHECKING RESIDUALS
+```{r}
+checkresiduals(month_ts)
+```
+
+```{r}
+checkresiduals(year_ts)
+```
+
+AUTOCORRELATION AND PARTIAL AUTOCORRELATION
+```{r}
+Acf(month_ts)
+Pacf(month_ts)
+Acf(year_ts)
+Pacf(year_ts)
+```
+
+
+ARIMA
+```{r}
+# Arima on month_ts
+arima_month <- arima(month_ts, c(1,0,1))
+arima_month
+summary(arima_month)
+
+# Arima on year_ts
+arima_year <- arima(year_ts, c(1,0,1))
+arima_month
+summary(arima_year)
+```
+
+```{r}
+# Perform the Ljung-Box test on the residuals of the model
+ljung_box <- Box.test(arima_month$residuals, type = "Ljung-Box")
+
+# Print the test results
+print(ljung_box)
+
+# Perform the Ljung-Box test on the residuals of the model
+ljung_box1 <- Box.test(arima_year$residuals, type = "Ljung-Box")
+
+# Print the test results
+print(ljung_box1)
+```
+```{r}
+# forecasting using Arima
+forecast_month <- forecast(arima_month,12)
+forecast_year <- forecast(arima_year,1)
+summary(forecast_month)
+summary(forecast_year)
+
+plot(forecast_month)
+plot(forecast_year)
+```
+AUTOMATIC ARIMA
+
+```{r}
+#Applying auto Arima to compare
+auto_arima <- auto.arima(month_ts, seasonal=FALSE)
+auto_arima
+summary(auto_arima)
+
+
+auto_arima1 <- auto.arima(year_ts)
+auto_arima1
+summary(auto_arima1)
+
+```
+
+```{r}
+#Forecasting using auto Arima
+forecast (auto_arima)
+forecast(auto_arima1)
+
+```
+```{r}
+#Box text for Auto Arima
+Box.test(auto_arima$residuals,type = "Ljung-Box")
+Box.test(auto_arima1$residuals,type = "Ljung-Box")
+
+```
+
+SARIMA
+
+```{r}
+
+# Fit a Seasonal ARIMA model
+sarima_model <- arima(year_ts, order = c(1, 1, 1), seasonal = list(order = c(0, 1, 1), period = 12))
+# View the model summary
+summary(sarima_model) # ( NOT SEASONAL)
+
+
+
+sarima_model1 <- arima(month_ts, order = c(1, 1, 1), seasonal = list(order = c(0, 1, 1), period = 12))
+# View the model summary
+summary(sarima_model1)
+
+```
+
+SPLITTING DATA
+
+```{r}
+# split monthly temperature data into training and test sets
+train_month_ts <- window(month_ts, end=c(2003,12))
+test_month_ts <- window(month_ts, start=c(2004,1), end=c(2004,12))
+
+# split yearly temperature data into training and test sets
+train_year_ts <- window(year_ts, end=2003)
+test_year_ts <- window(year_ts, start=2004, end=2004)
+
+```
+
+To forecast the average temperatures for 2004 using the monthly temperature data, we can fit an appropriate ARIMA model to the training set and use it to make forecasts for the next 12 months. 
+```{r}
+# Fit a SARIMA model to monthly training data
+sarima_month_train <- arima(train_month_ts, order=c(2,0,1), seasonal=c(1,1,0))
+
+# Forecast next 12 months using the SARIMA model
+forecast_month <- forecast(sarima_month_train, h=12)
+
+# Plot the forecast and actual data for 2004
+plot(forecast_month, main="Monthly Temperature Forecast for 2004 SARIMA")
+lines(test_month_ts, col="red")
+legend("topleft", legend=c("Monthly Forecast", "Test"), col=c("blue", "red"), lty=1)
+
+
+```
+Holt_winters Forecast
+```{r}
+# Fit a Holt-Winters model to monthly training data
+hw_month_train <- HoltWinters(train_month_ts)
+
+# forecast next 12 months using the Holt-Winters model
+forecast_month <- forecast(hw_month_train, h=12)
+
+# plot the forecast and actual data for 2004
+plot(forecast_month, main="Monthly Temperature Forecast for 2004 Holt WInters")
+lines(test_month_ts, col="red")
+legend("topleft", legend=c("Monthly Forecast", "Test"), col=c("blue", "red"), lty=1)
+
+```
+
+
+```{r}
+# fit a seasonal ARIMA model to yearly training data
+arima_year_train <- auto.arima(train_year_ts)
+
+# forecast next year using the SARIMA model
+forecast_year <- forecast(arima_year_train, h=1)
+
+# plot the forecast and actual data for 2004
+plot(forecast_year, main="Yearly Temperature Forecast for 2004")
+points(test_year_ts, col="red", pch=20)
+legend("bottomleft", legend=c( "Test"), col=c("red"), lty=1, pch=c(1,20))
+
+```
+
+```{r}
+# subset monthly temperature data for year 2004
+month_2004 <- window(month_ts, start=c(2004,1), end=c(2004,12))
+forecast_month <- forecast(sarima_month_train, h=12)
+
+# plot monthly temperature data for year 2004
+plot(month_2004, main="Monthly Temperature Data for 2004")
+
+
+```
+
+
+```{r}
+year_ts <- ts(year_temp.df, start=1844, end=2004)
+temp_range <- year_ts[149:161]
+
+# plot the temperature range
+plot(temp_range, type="b", main="Yearly Actual Temperature Range for 2004")
+
+# add lines connecting the points
+lines(temp_range, col="blue")
+
+# add labels for x and y axes
+xlab("Year")
+ylab("Temperature")
+
+
+```
+
+
+
+
+```{r}
+# plot the forecast and actual data for 2004
+plot(forecast_month, main="Monthly Temperature Forecast for 2004")
+lines(month_ts, col="blue")
+lines(test_month_ts, col="red")
+legend("topleft", legend=c("Forecast", "Original", "Test"), col=c("green", "blue", "red"), lty=1)
+
+# fit a SARIMA model to yearly training data
+sarima_year_train <- auto.arima(train_year_ts, seasonal=TRUE)
+
+```
+
+
+
+```{r}
+
+# fit an auto.arima model to yearly temperature data
+arima_year <- auto.arima(year_ts)
+
+# forecast next year using the auto.arima model
+forecast_year <- forecast(arima_year, h=length(test_year_ts))
+
+# plot the forecast and actual data for 2004
+plot(forecast_year, main="Yearly Temperature Forecast for 2004")
+points(year_ts, col="blue", pch=20)
+points(test_year_ts, col="red", pch=20)
+lines(forecast_year$mean, col="green")
+legend("bottomleft", legend=c("Forecast", "Original", "Test"), col=c("green", "blue", "red"), lty=1, pch=c(1,20,20))
+
+```
+
+
+
+
+
+
