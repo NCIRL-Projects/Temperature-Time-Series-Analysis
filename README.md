@@ -2,7 +2,8 @@
 
 Aleksandra Kalisz  
 Postgraduate Diploma in Science in Data Analytics  
-National College of Ireland, Dublin_
+National College of Ireland, Dublin
+
 alexkalisz@gmail.com
 
 This repository contains a comprehensive analysis of two time series datasets representing the average temperatures from January 1844 to December 2004. The analysis includes various modeling techniques such as ARIMA, SARIMA, and Holt-Winters methods for forecasting temperature trends.
